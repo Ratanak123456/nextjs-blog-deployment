@@ -1,43 +1,67 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
-.vercel
-
-# typescript
+# Installed dependencies and generated output
+node_modules/
+.next/
+out/
 *.tsbuildinfo
-next-env.d.ts
 
+# Local VM state
+.vagrant/
+
+# Logs
+*.log
+
+# Environment files containing real credentials
+.env
+.env.*
+*.env
+
+# Keep configuration examples
 !.env.example
+!*.env.example
+
+# Credentials and local tooling
+.aws/
+.codex/
+.agents/
+*.pem
+*.key
+*.p12
+*.pfx
+credentials
+credentials.json
+.netrc
+.npmrc
+
+# Generated files and local backups
+coverage/
+build/
+dist/
+.vercel/
+.turbo/
+next-env.d.ts
+*.tmp
+*.swp
+*~
+*.bak
+*.backup
+backup/
+backups/
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+.DS_Store
+
+node_modules/
+.next/
+.vagrant/
+out/
+coverage/
+*.log
+*.tsbuildinfo
+.env
+.env.*
+*.env
+!.env.example
+!.env.*.example
+!*.env.example

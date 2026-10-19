@@ -1,97 +1,134 @@
-# Taskboard — Next.js deployment lab
+# Next.js Blog — Application Preparation & Server Setup
 
-A complete App Router application in `application/`: responsive dashboard, create/edit/delete with confirmation, search and status filters, summary counts for the current filtered view, timestamps, and accessible loading/error/empty/success states. PostgreSQL is the only storage. No authentication is included for this local lab.
+Project សម្រាប់ DevOps Lab ដែលផ្តោតលើ **Preparing Application for Deployment** និង **Configuring the Web Server for Application Hosting**។
 
-## 1. Local development
+យើងប្រើ **Application VM មួយ** ដែលមាន Nginx និង Node.js នៅលើ Server តែមួយ។ Project នេះមិនប្រើ Load Balancer, HAProxy, Keepalived ឬ Docker ទេ។ PostgreSQL ជាផ្នែកដែលសមាជិកក្រុមទទួលបន្ទុករៀបចំដោយឡែក។
 
-Use Node.js 24 and npm. From `application/`:
+## វិសាលភាពការងារ
+
+| ផ្នែក | ការងារ |
+| --- | --- |
+| Application preparation | ត្រៀម Blog Source Code, Dependencies, Environment Examples, Tests និង Production Build |
+| Server configuration | ត្រៀម Vagrant VM, Node.js, npm, Nginx, Application Account, Directories និង systemd Service |
+| Teammate handoff | សមាជិកក្រុមបន្តផ្ទេរ Application, រៀបចំ PostgreSQL, បញ្ចូល Credentials, Run Migrations និងធ្វើ Deployment Verification |
+
+**`just up` រៀបចំ VM និង Server Software ដោយស្វ័យប្រវត្តិនៅពេលបង្កើត VM លើកដំបូង។ វាមិន Deploy Blog ឬដំឡើង PostgreSQL ដោយស្វ័យប្រវត្តិទេ។**
+
+## Blog Application
+
+Application ជា Full-stack Next.js Blog ដែលមាន Frontend Pages និង Backend API នៅក្នុង Project តែមួយ។ ទិន្នន័យ Blog រក្សាទុកក្នុង PostgreSQL។
+
+- បង្កើត Blog Post ដែលមាន Title, Content និង Author។
+- មើល Post List និង Post Details។
+- កែប្រែ និងលុប Post។
+- Server-side Input Validation និង Error Handling។
+- Liveness និង Database Readiness Endpoints។
+
+| ផ្នែក | បច្ចេកវិទ្យា |
+| --- | --- |
+| Frontend / Backend | Next.js App Router, TypeScript |
+| Styling | Tailwind CSS |
+| Database client | `pg` |
+| Database | PostgreSQL |
+| Dependency manager | npm និង `package-lock.json` |
+
+នេះជា Local CRUD Lab ដោយគ្មាន Authentication។ ការបោះពុម្ព Source Code ជាសាធារណៈលើ GitHub មិនមែនជាការបើក Application ឱ្យប្រើតាម Internet ទេ។
+
+## Server Architecture
+
+នៅពេល Application ត្រូវបាន Deploy រួច Browser ចូលតាម Nginx នៅ `192.168.56.30:80`។ Nginx បញ្ជូន Page Requests និង API Requests ទៅ Next.js នៅ `127.0.0.1:3000` ក្នុង VM។ Next.js ភ្ជាប់ទៅ PostgreSQL តាម `DATABASE_URL`។
+
+| Setting | Value |
+| --- | --- |
+| VM name | `app-01` |
+| Base box | `ubuntu/jammy64` |
+| Guest OS | Ubuntu 22.04 |
+| Provider | VirtualBox |
+| Private IP | `192.168.56.30` |
+| RAM / CPUs | 2048 MB / 2 CPUs |
+| Runtime | Node.js 24 និង npm |
+| Web server | Nginx |
+| Service account / service | `nextapp` / `nextapp.service` |
+| Application directory | `/opt/nextapp/current` |
+| VM environment file | `/etc/nextapp/nextapp.env` |
+| Application URL after deployment | http://192.168.56.30/ |
+
+Private Network របស់ VirtualBox ជា Host-only Network ក្នុងការកំណត់នេះ។ Laptop របស់មិត្តមិនអាចចូល VM នេះដោយស្វ័យប្រវត្តិតាម IP ខាងលើទេ។ Database ដែលដំណើរការនៅលើ Laptop ឬ VM ផ្សេង ត្រូវមាន Network Path ដែល `app-01` អាចភ្ជាប់បាន។
+
+## Project Files
+
+| Path | Purpose |
+| --- | --- |
+| `application/src/app/` | Pages និង API Routes |
+| `application/src/components/` | UI Components |
+| `application/src/lib/` | Database, Validation និង Application Logic |
+| `application/migrations/` | Database Schema Migrations |
+| `application/scripts/` | Migration, Seed និង API Verification Scripts |
+| `application/tests/` | Automated Tests |
+| `application/package.json` | Dependencies និង npm Scripts |
+| `application/package-lock.json` | Dependency Versions |
+| `application/.env.example` | Local Application Environment Example |
+| `Vagrantfile` | Single VM និង Automatic Provisioning |
+| `justfile` | Host-side Management Commands |
+| `scripts/setup-app-server.sh` | Runtime, Nginx និង Service Setup |
+| `scripts/build-app.sh` | Build Application ដែលបានផ្ទេរចូល VM រួច |
+| `nginx/nextapp.conf` | Single-server Nginx Reverse Proxy |
+| `systemd/nextapp.service` | Next.js Process Configuration |
+| `nextapp.env.example` | Template សម្រាប់ Environment ក្នុង VM |
+
+រក្សាទុក Migration History រួមទាំង `001_tasks.sql` និង `002_posts.sql`។ មិនត្រូវលុប Migration ដែលបានប្រើរួច ដោយសារតែ Application ប្តូរពី Task Manager ទៅ Blog ទេ។
+
+## Prerequisites នៅលើ Host Laptop
+
+- Git។
+- Vagrant និង VirtualBox ដែលអាចដំណើរការ VM បាន។
+- `just` សម្រាប់ Commands ក្នុង Justfile។
+- Internet សម្រាប់ Download Base Box និង Packages។
+- RAM និង Disk Space គ្រប់គ្រាន់សម្រាប់ VM។
+- Node.js និង npm នៅលើ Host តែបើចង់ Develop/Test Application នៅលើ Host។ Node.js ក្នុង VM ត្រូវបានដំឡើងដោយ Setup Script។
+
+សម្រាប់ Arch Linux អាចដំឡើង `just` ដោយ៖
 
 ```bash
+sudo pacman -S just
+```
+
+បន្ទាប់ពី Clone Repository ត្រូវចូលទៅ Directory ដែលមាន `Vagrantfile` និង `justfile`។ Commands `just ...` ខាងក្រោមត្រូវដំណើរការលើ **Host Laptop**។
+
+## ១. Preparing the Application
+
+ចូលទៅ Application Directory៖
+
+```bash
+cd application
 npm ci
-cp .env.example .env.local
-# Edit .env.local with a reachable PostgreSQL DATABASE_URL.
-npm run db:migrate
+```
+
+ប្រើ Node.js 24 សម្រាប់ការផ្ទៀងផ្ទាត់ដែលត្រូវគ្នានឹង Target VM។ រក្សាទុក Lockfile ហើយកុំ Copy `node_modules` ពី Host ចូល VM។
+
+ដើម្បីសាកល្បង Database-backed Features ត្រូវរៀបចំ Environment File នៅក្នុង `application/` តាម `.env.example`។ កុំ Overwrite Environment ដែលមាន Credentials រួច។
+
+ទម្រង់ Connection URL៖
+
+```dotenv
+DATABASE_URL="postgresql://DB_USER:DB_PASSWORD@DB_HOST:5432/DB_NAME"
+```
+
+ប្រើ PostgreSQL URI មិនមែន Java JDBC URL ដែលចាប់ផ្តើមដោយ `jdbc:` ទេ។ URL-encode Special Characters ក្នុង Username/Password តាមតម្រូវការ។ Next.js ពង្រីក `$VARIABLE` ក្នុង dotenv ដូច្នេះ Literal `$` អាចត្រូវសរសេរជា `\$`។
+
+Database Credentials ត្រូវនៅ Server-side និងមិនត្រូវប្រើ `NEXT_PUBLIC_`។ Values ដែលប្រើ `NEXT_PUBLIC_` ត្រូវបានបញ្ចូលក្នុង Browser Build ហើយត្រូវ Rebuild នៅពេលប្តូរ។
+
+### Development
+
+```bash
 npm run dev
 ```
 
-Open http://localhost:3000. The page and `/api/health` work without PostgreSQL; task operations and `/api/ready` return 503 until a configured, migrated database is reachable. No seed data is required or automatically inserted. No install, build, or startup hook changes the database.
+បើក http://localhost:3000/ ។ Production Build អាចត្រៀមដោយមិនមាន PostgreSQL ប៉ុន្តែ Blog CRUD ត្រូវការ Database ដែលអាចភ្ជាប់បាន និង Schema រួចរាល់។
 
-## 2. Application and server preparation
+### Validation
 
-Application preparation is implemented here. Existing deployment assets live one directory above: `Vagrantfile`, `justfile`, `scripts/`, `nginx/`, and `systemd/`. They were inspected and preserved. VM setup and live configuration were not run or verified during implementation.
-
-The prepared deployment contract is Ubuntu 22.04 VM `app-01` (`192.168.56.30`), Node.js 24, user `nextapp`, source `/opt/nextapp/current`, default `.next` build, and `nextapp.service`. Nginx forwards port 80 to `127.0.0.1:3000`. The existing service runs regular `next start`; no custom server or output mode is needed. All browser API URLs are relative.
-
-Do not recreate the already prepared VM or rerun privileged setup as part of application development. Keep existing `.vagrant` state and real environment values.
-
-## 3. Teammate: transfer files and prepare PostgreSQL
-
-On the designated PostgreSQL server, an administrator should create a dedicated role and database (PostgreSQL 14+):
-
-```sql
-CREATE ROLE taskapp LOGIN;
--- In psql, set its password interactively:
-\password taskapp
-CREATE DATABASE tasklab OWNER taskapp;
-```
-
-Configure PostgreSQL `listen_addresses` for the database interface, a narrow `pg_hba.conf` rule for the actual app VM source address using `scram-sha-256`, and the firewall to allow that source to port 5432. Reload/restart PostgreSQL as appropriate. Supply the database name, username, password and a reachable host to the application owner. The database role owns its schema; the explicit migration creates the table and index.
-
-**Host-only VMs on separate laptops cannot automatically communicate.** Use both VMs on the same host/private network, or agree on a bridged/routed connection. Use the DB address reachable from app-01, not the other laptop's isolated host-only address. `localhost` is only correct when PostgreSQL runs on app-01.
-
-After source is available at `/vagrant/application/`, your teammate runs the following **inside the existing app-01 VM** (these commands are documented, not executed here):
-
-```bash
-sudo systemctl stop nextapp
-sudo rsync -a --chown=nextapp:nextapp \
-  --exclude=node_modules --exclude=.next --exclude=.git --exclude='.env*' \
-  /vagrant/application/ /opt/nextapp/current/
-sudoedit /etc/nextapp/nextapp.env
-```
-
-This initial copy preserves the prepared environment link and does not delete existing files. Do not transfer host `node_modules` or `.next`. Later in-place rebuilds cause downtime.
-
-## 4. Environment and explicit migration
-
-Use `.env.local` locally. On the VM, `/opt/nextapp/current/.env.production` must remain linked to `/etc/nextapp/nextapp.env` with its existing protected ownership/permissions. Set:
-
-```dotenv
-DATABASE_URL="postgresql://taskapp:URL_ENCODED_PASSWORD@REACHABLE_DB_HOST:5432/tasklab"
-```
-
-URL-encode special characters in credentials, then escape any literal `$` as `\$` for Next.js dotenv expansion. Never use `NEXT_PUBLIC_DATABASE_URL`. Do not source dotenv files as shell scripts, commit credentials, or copy `.env.local` to production: it overrides `.env.production`.
-
-Migration scripts explicitly load Next.js dotenv configuration through `@next/env`, relative to the application working directory. They default to development configuration (`.env.development.local`, `.env.local`, `.env.development`, `.env`); `NODE_ENV=production` selects `.env.production.local`, `.env.local`, `.env.production`, `.env`. Existing process variables take precedence. Avoid extra local override files on the VM.
-
-Local migration: `npm run db:migrate`. Production migration, **after `just build` installs dependencies**, inside app-01:
-
-```bash
-sudo -u nextapp /bin/bash -c 'cd /opt/nextapp/current && NODE_ENV=production npm run db:migrate'
-```
-
-`migrations/001_tasks.sql` is repeatable with `IF NOT EXISTS`, a transaction, UUID IDs, timestamps, field constraints, and a status/date index. Reapplying preserves data; future schema changes need additional versioned migrations. No seed command is provided because an empty dashboard is intentional.
-
-Connections use a reused server-only `pg` pool (10 connections, 3-second acquisition/connect timeout, 5-second statement/query timeouts). Readiness checks table access as well as connectivity. Database failures return safe messages and log a sanitized error code without driver messages or credentials.
-
-## 5. Production build/start with the existing justfile
-
-From the **parent directory containing `justfile` on your laptop**:
-
-```bash
-just stop
-just build
-# Teammate now runs the production migration from section 4 inside app-01.
-just start
-just status
-just nginx-check
-just check
-```
-
-`just build` refuses to rebuild an active service, runs `npm ci --include=dev` and `npm run build` as nextapp, and uses the default `.next` output. Building requires no database or external fonts. The environment must be correct before migrations; restart the service after changing runtime values. For manual local production checks: `npm run build && npm start`.
-
-## 6. UI, API, health, readiness, and persistence tests
-
-From `application/`:
+ដំណើរការមួយ Command ម្តង ហើយដោះស្រាយ Error មុនបន្ត៖
 
 ```bash
 npm run lint
@@ -100,46 +137,187 @@ npm test
 npm run build
 ```
 
-API responses are `{ "data": ... }` on success and `{ "error": { "message": "..." } }` on failure. List data is an array. Fields are title (1–200 trimmed characters), description (optional, up to 5000), status (`todo`, `in_progress`, `done`), priority (`low`, `medium`, `high`). Defaults are empty description, todo, medium. PATCH accepts only these four fields, rejects empty/unsupported-only updates, and ignores unrelated keys. IDs must be UUIDs. Invalid input returns 400, absent tasks 404, create 201, other success 200, database failures 503; unsupported HTTP methods use Next.js 405.
+Build Output ស្ថិតនៅ `.next/`។ Build មិនគួរ Run Migration ឬ Seed Database ដោយស្វ័យប្រវត្តិ។
+
+### Local production smoke test
 
 ```bash
-curl -i http://192.168.56.30/api/health
-curl -i http://192.168.56.30/api/ready
-curl -i 'http://192.168.56.30/api/tasks?status=todo&search=deploy'
-curl -i http://192.168.56.30/api/tasks/not-a-uuid
+npm start -- --hostname 127.0.0.1 --port 3100
 ```
 
-Health must return 200 regardless of PostgreSQL. Readiness returns 503 when unavailable or unmigrated, 200 when usable. Stopping PostgreSQL should keep the page usable and show an explicit connection error; restore it and click Retry connection.
-
-For an explicitly designated test database, configure its URL, migrate it, start the application against it, and run this live integration check (creates and deletes one test task):
+ក្នុង Terminal មួយទៀត៖
 
 ```bash
-# In a dedicated test checkout/environment, with DATABASE_URL pointing at the test database:
-npm run db:migrate
-npm run dev
-# Second terminal; use BASE_URL=http://192.168.56.30 only when that lab database is designated for testing:
-BASE_URL=http://localhost:3000 node scripts/verify-api.mjs
+curl -i http://127.0.0.1:3100/api/health
+curl -i http://127.0.0.1:3100/api/ready
+curl -i http://127.0.0.1:3100/api/posts
 ```
 
-The script checks create/get/update/filter/delete across separate HTTP requests, validation and missing-task responses. For restart persistence, create a uniquely named task in the UI, edit its description/priority/status, reload, run `just restart` from the parent directory, and confirm the same task/ID remains. Search for it, filter each status, cancel deletion once, then confirm deletion and reload. Check narrow-screen layout, keyboard Tab navigation, visible focus, and Escape/cancel in the delete dialog. Counts describe the current filtered result, not all database rows.
+| Endpoint | Expected behavior |
+| --- | --- |
+| `/api/health` | HTTP 200 នៅពេល App អាចឆ្លើយតប ដោយមិនត្រូវការ Database |
+| `/api/ready` | HTTP 200 នៅពេល Database Ready; HTTP 503 បើមិនអាចប្រើបាន |
+| `/api/posts` | HTTP 200 ជាមួយ Post List នៅពេល Connection និង Schema Ready |
 
-No designated PostgreSQL test server was supplied, so live database integration and restart persistence remain unverified until these steps run. Unit tests cover validation and safe failure responses; they do not substitute for the database check.
+## ២. Configuring the Web Server
 
-## 7. Logs
-
-From the parent directory on your laptop:
+ពី Project Root៖
 
 ```bash
-just logs
-# Separate proxy logs:
-vagrant ssh app-01 -c "sudo tail -n 100 /var/log/nginx/nextapp.access.log"
-vagrant ssh app-01 -c "sudo tail -n 100 /var/log/nginx/nextapp.error.log"
+just validate
+just up
 ```
 
-`just logs` shows systemd application output (`journalctl -u nextapp`), not Nginx traffic. For 502 responses, check the service and application logs; for 503 task/readiness responses, check the DB URL, routing/firewall, credentials, and migration. This remains an unauthenticated HTTP local lab; access should stay within the intended lab network.
+`just up` បង្កើត `app-01` ហើយដំណើរការ `scripts/setup-app-server.sh` ពេលបង្កើត VM លើកដំបូង។ Provisioning ត្រូវកំណត់ក្នុង Vagrantfile ដូចនេះ៖
 
-## Implementation verification
+```ruby
+app.vm.provision "shell",
+  name: "setup-app-server",
+  privileged: true,
+  inline: "bash /vagrant/scripts/setup-app-server.sh"
+```
 
-Verified in the development workspace: ESLint, generated route types plus `tsc --noEmit`, seven focused tests, a clean `npm ci --offline --ignore-scripts`, and a successful default `next build` without PostgreSQL. A production `next start` smoke check returned 200 for `/` and `/api/health`, 503 for `/api/ready` and `/api/tasks`, and 400 for malformed JSON, invalid titles/IDs/status filters, and unsupported-only PATCH fields. Builds/test execution required local worker-socket permissions in the workspace sandbox; clearing the generated failed build cache resolved its cached worker error.
+Setup Script៖
 
-The available workspace Node version was 26.12.0; target Node.js 24, the VM service, Nginx, real browser interactions, and live PostgreSQL CRUD/restart persistence still require verification on the lab environment. No VM setup, transfer, privileged deployment, or PostgreSQL installation was performed.
+1. ដំឡើង Node.js 24 ពី Signed NodeSource Repository, npm, Nginx និង Build Tools។
+2. បង្កើត `nextapp` Account ដោយគ្មាន Interactive Login Shell។
+3. រៀបចំ `/opt/nextapp/current`, `/var/lib/nextapp` និង `/etc/nextapp`។
+4. បង្កើត Environment File ពី Template ប្រសិនបើមិនទាន់មាន និងរក្សាទុក Existing Credentials។
+5. ភ្ជាប់ `/opt/nextapp/current/.env.production` ទៅ `/etc/nextapp/nextapp.env`។
+6. ដំឡើង Nginx Configuration និង systemd Service File។
+7. ពិនិត្យ Configuration ហើយ Enable/Start Nginx។
+
+សម្រាប់ VM ដែលមានរួច និងកំពុង Running អាច Reapply Setup ដោយ៖
+
+```bash
+just setup
+```
+
+ការដំណើរការ `just up` លើ VM ដែលធ្លាប់ Provision រួច មិនមែនតែងតែ Run Setup ឡើងវិញទេ។ ប្រើ `just setup` ពេលប្តូរ Provisioning Files។
+
+### Nginx
+
+Configuration Source គឺ `nginx/nextapp.conf`។ វាត្រូវបានដំឡើងជា `/etc/nginx/sites-available/nextapp` និង Enable តាម Symlink ក្នុង `/etc/nginx/sites-enabled/`។
+
+Nginx ទទួល Requests នៅ Port 80 ហើយ `proxy_pass` ទៅ `http://127.0.0.1:3000`។ Response Buffering ត្រូវបានបិទសម្រាប់ Streaming។ Logs ស្ថិតនៅ៖
+
+```text
+/var/log/nginx/nextapp.access.log
+/var/log/nginx/nextapp.error.log
+```
+
+### systemd
+
+Configuration Source គឺ `systemd/nextapp.service`។ វាត្រូវបានដំឡើងនៅ `/etc/systemd/system/nextapp.service`។
+
+Service ដំណើរការជា `nextapp`, ប្រើ `/opt/nextapp/current`, កំណត់ `NODE_ENV=production`, ពិនិត្យ `.next/BUILD_ID` និង Run Next.js នៅ `127.0.0.1:3000`។ Application Errors និង Console Output ត្រូវបានកត់ត្រាក្នុង systemd Journal។
+
+នៅពេល Setup លើកដំបូង Service File ត្រូវបានត្រៀម ប៉ុន្តែ Application មិនទាន់ Start/Enable ទេ។ ការចាប់ផ្តើមត្រូវរង់ចាំ File Transfer, Configuration និង Build។
+
+### Verify server preparation
+
+```bash
+just status
+just nginx-check
+vagrant ssh app-01 -c "node --version && npm --version"
+vagrant ssh app-01 -c "systemctl --no-pager status nginx"
+```
+
+Expected: VM Running, Node.js 24 Installed, npm Installed, Nginx Active និង Configuration Test Successful។
+
+**HTTP 502 នៅមុន Next.js Start គឺអាចកើតឡើងបាន** ព្រោះ Nginx មិនទាន់អាចភ្ជាប់ទៅ Application នៅ Port 3000។ វាមិនបញ្ជាក់ថា Node.js មិនបានដំឡើងទេ ហើយមិនមែនជា Application Health Check ដែលជោគជ័យដែរ។
+
+## Just Commands
+
+| Command | Purpose |
+| --- | --- |
+| `just --list` | បង្ហាញ Recipes |
+| `just validate` | ពិនិត្យ Vagrantfile |
+| `just up` | Create/Start app-01 |
+| `just setup` | Re-run Provisioning |
+| `just ssh` | ចូល VM |
+| `just reload` | Restart VM ដើម្បី Apply Vagrantfile Changes |
+| `just status` | VM State |
+| `just services` | Nginx និង Next.js Status |
+| `just nginx-check` | Nginx Syntax Check |
+| `just nginx-reload` | Validate រួច Reload Nginx |
+| `just logs` | Application Logs |
+| `just halt` | បិទ VM ដោយរក្សាទុក Disk |
+| `just destroy` / `just destory` | លុប VM និង Internal Disk បន្ទាប់ពី Confirmation |
+| `just build` | Install Dependencies និង Build ក្រោយ Transfer |
+| `just start` | Enable/Start Application |
+| `just stop` / `just restart` | Stop/Restart Application Process |
+| `just check` | Application Liveness តាម Nginx |
+| `just ready` | Database Readiness តាម Nginx |
+
+`just services` អាច Return Exit Code 3 ពេល `nextapp` នៅ Inactive។ នេះជាលទ្ធផលរបស់ `systemctl status` មិនមែនជាភស្តុតាងថា Provisioning បរាជ័យទេ។
+
+`just destroy` លុប Application Files និង Environment Settings ដែលរក្សាទុកក្នុង VM។ Source Code នៅលើ Host និង Downloaded Base Box មិនត្រូវបានលុបដោយ Command នេះទេ។
+
+## Teammate Handoff
+
+ភារកិច្ចបន្ទាប់មិនត្រូវបាន Run ដោយ Automatic Setup ទេ៖
+
+| Task | Target / requirement |
+| --- | --- |
+| Transfer application | `/opt/nextapp/current`, owner `nextapp:nextapp` |
+| Install/configure PostgreSQL | Database ត្រូវ Reachable ពី app-01 |
+| Set environment | `/etc/nextapp/nextapp.env`; រក្សាទុក `.env.production` Symlink |
+| Install dependencies/build | Build ក្នុង VM ជាមួយ Node.js 24 និង Lockfile |
+| Apply migrations | Explicit migration command ពី Application README; បញ្ជាក់ Database Target មុន Run |
+| Start application | systemd `nextapp.service` |
+| Final verification | http://192.168.56.30/ និង CRUD Persistence |
+
+ពេល Transfer មិនត្រូវ Copy Host `node_modules`, `.next`, `.git` ឬ Real `.env*` ចូល Deployment Directory។ `localhost` ក្នុង VM សំដៅ VM ខ្លួនឯង មិនមែន Host Laptop ទេ។
+
+## Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| `no justfile found` | Run Commands ពី Directory ដែលមាន Justfile |
+| `Missing package.json` ពេល Build | Application មិនទាន់ Transfer ទៅ `/opt/nextapp/current` |
+| Nginx 502 | ពិនិត្យ `just services`, `just logs` និង Nginx Error Log |
+| `/api/health` 200 ប៉ុន្តែ `/api/ready` 503 | App Running ប៉ុន្តែ Database Readiness មិនទាន់ Ready |
+| `host_resolution` / `EAI_AGAIN` | ពិនិត្យ Database Hostname, Placeholder និង DNS ពីក្នុង VM |
+| Migration ENOENT | ពិនិត្យ Application Files និង Working Directory |
+| Build ត្រូវ Kill ដោយ Memory មិនគ្រប់ | ពិនិត្យ VM Memory; អាចត្រូវបង្កើន RAM សម្រាប់ Build |
+
+កុំប្រើ `npm audit fix --force` ដោយមិនពិនិត្យ Dependency Changes និង Re-test។ ពិនិត្យ Dependency Audit ដោយឡែកពី Production Build។
+
+## Verification Record
+
+ការរៀបចំ Repository មិនដំណើរការ Deployment, Migration, Seed ឬ VM Destruction ទេ។ ការផ្ទៀងផ្ទាត់ Local Application និង Static Configuration ត្រូវរាយការណ៍តាមលទ្ធផល Commands ដែលបាន Run ពិតប្រាកដ។ កុំចាត់ទុក Production Build ឬ `/api/health` HTTP 200 ថា Database Ready។
+
+ការផ្ទៀងផ្ទាត់ Node.js 24 ក្នុង VM, Nginx/systemd Runtime, Browser Interaction, PostgreSQL CRUD និង Restart Persistence នៅជាភារកិច្ចរបស់ក្រុមពេល Final Deployment។ `/api/ready` ពិនិត្យការចូលប្រើ `posts` Table ហើយឆ្លើយ HTTP 503 បើ Configuration, Connection ឬ Schema មិនទាន់ Ready។
+
+លទ្ធផល Local Checks ក្នុង Session នេះ (Node.js 26.12.0; Target VM ប្រើ Node.js 24)៖
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | Passed |
+| `npm run typecheck` | Passed |
+| `npm test` | Blocked ដោយ Sandbox IPC `EPERM` |
+| `node --import tsx --test tests/*.test.ts` | Exit 0; Runner រាយការណ៍ Test File មួយ Passed |
+| `npm run build` | Blocked ដោយ Turbopack Worker Port `EPERM` |
+| `npm run build -- --webpack` | Passed |
+| Bash / JavaScript / Vagrantfile Syntax | Passed |
+| `just --list` | Passed |
+| `vagrant validate` ជាមួយ Temporary `VAGRANT_HOME` | Blocked ដោយ VirtualBox Version ដែល Vagrant មិន Support |
+| HTTP / Database Readiness / CRUD | មិនបាន Run ក្នុង Session នេះ |
+
+## Files to Keep Out of Git
+
+មិនត្រូវ Commit Real Environment Files, Passwords, `.vagrant/`, `node_modules/`, `.next/`, Logs, Generated Build Archives ឬ Backup Archives។ រក្សាទុក `package-lock.json`, Environment Examples និង Migration History។
+
+ការកំណត់នេះសម្រាប់ Local HTTP Lab។ Public Hosting និង HTTPS Configuration មិនស្ថិតក្នុងការអនុវត្តនេះទេ។
+
+## Official References
+
+- [Next.js Deployment](https://nextjs.org/docs/app/getting-started/deploying)
+- [Next.js Self-hosting](https://nextjs.org/docs/app/guides/self-hosting)
+- [Next.js Environment Variables](https://nextjs.org/docs/app/guides/environment-variables)
+- [node-postgres Connections](https://node-postgres.com/features/connecting)
+- [Vagrant Shell Provisioning](https://developer.hashicorp.com/vagrant/docs/provisioning/shell)
+- [Vagrant Destroy](https://developer.hashicorp.com/vagrant/docs/cli/destroy)
+- [Nginx Beginner's Guide](https://nginx.org/en/docs/beginners_guide.html)
+- [Just Manual](https://just.systems/man/en/)

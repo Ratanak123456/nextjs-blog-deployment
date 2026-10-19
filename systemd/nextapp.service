@@ -1,0 +1,30 @@
+[Unit]
+Description=Next.js full-stack application
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=nextapp
+Group=nextapp
+WorkingDirectory=/opt/nextapp/current
+Environment=NODE_ENV=production
+Environment=HOME=/var/lib/nextapp
+Environment=NEXT_TELEMETRY_DISABLED=1
+ExecStartPre=/usr/bin/test -s /opt/nextapp/current/.next/BUILD_ID
+ExecStart=/usr/bin/node /opt/nextapp/current/node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3000
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0027
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nextapp
+
+[Install]
+WantedBy=multi-user.target
