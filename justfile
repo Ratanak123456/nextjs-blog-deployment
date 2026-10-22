@@ -19,7 +19,18 @@ up:
 ssh:
     vagrant ssh app-01
 
-# Install or reapply the server configuration.
+# Install or reapply the server configuration.# Run on your laptop from the deployment directory.
+set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
+
+default:
+    @just --list
+
+# Also accept your spelling: just destory
+alias destory := destroy
+
+# Validate the Vagrantfile.
+validate:
+    vagrant validate
 setup:
     vagrant provision app-01
 
